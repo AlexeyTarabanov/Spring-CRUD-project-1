@@ -17,7 +17,8 @@
                 <b>Книги:</b>
                 </br> <br/>
                 <table th:each="book : ${books}">
-                    <tr th:text="${book.getAuthor() + ', ' + book.getYear()}">book</tr>
+                    <td th:style="${book.isOverdue() == true ? 'color: red;' : 'color: black;'}"
+                        th:text="${book.getTitle() + ', ' + book.getAuthor() + ', ' + book.getYear()}">book</td>
                 </table>
                 <hr/>
             </div>
@@ -33,6 +34,11 @@
             <form th:method="DELETE"
                   th:action="@{/people/{id}(id=${person.getPersonId()})}">
                 <input type="submit" value="Удалить"/>
+            </form>
+
+            <form th:method="GET"
+                  th:action="@{/people}">
+                <input type="submit" value="Назад">
             </form>
         </body>
 </html>

@@ -4,18 +4,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
-import ru.alishev.springcourse.dao.PersonDAO;
 import ru.alishev.springcourse.models.Person;
+import ru.alishev.springcourse.services.PeopleService;
 
 @Component
 public class PersonValidator implements Validator {
 
-    private final PersonDAO personDAO;
+    private final PeopleService peopleService;
 
     @Autowired
-    public PersonValidator(PersonDAO personDAO) {
-        this.personDAO = personDAO;
+    public PersonValidator(PeopleService peopleService) {
+        this.peopleService = peopleService;
     }
+
 
     // указываем к какому классу этот Validator относится
     @Override
@@ -30,7 +31,7 @@ public class PersonValidator implements Validator {
         // fullName -на каком поле случилась ошибка
         // второй аргумент - код ошибки
         // сообщение об ошибке
-        if (personDAO.getPersonByFullName(person.getFullName()).isPresent()) {
+        if (peopleService.getPersonByFullName(person.getFullName()).isPresent()) {
             errors.rejectValue("fullName", "",
                     "Пользователь с таким ФИО уже существует");
         }
