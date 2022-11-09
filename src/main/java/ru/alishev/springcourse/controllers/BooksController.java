@@ -11,7 +11,6 @@ import ru.alishev.springcourse.services.BookService;
 import ru.alishev.springcourse.services.PeopleService;
 
 import javax.validation.Valid;
-import java.util.Optional;
 
 
 @Controller
@@ -29,29 +28,26 @@ public class BooksController {
 
     /**
      * Показывает все книги на странице.
-     * @param page страница
-     * @param booksPerPage количество книг на странице
-     * @param sortByYear сортировка по году
      *
-     * ?sort_by_year=true
-     * ?page=1&books_per_page=4
-     * ?page=1&books_per_page=3&sort_by_year=true
-     * */
+     * @param page         страница
+     * @param booksPerPage количество книг на странице
+     * @param sortByYear   сортировка по году
+     *                     <p>
+     *                     ?sort_by_year=true
+     *                     ?page=1&books_per_page=4
+     *                     ?page=1&books_per_page=3&sort_by_year=true
+     */
     @GetMapping()
     public String showAll(Model model,
                           @RequestParam(value = "page", required = false) Integer page,
                           @RequestParam(value = "books_per_page", required = false) Integer booksPerPage,
-                          @RequestParam(value = "sort_by_year", required = false, defaultValue = "false") boolean sortByYear) {
+                          @RequestParam(value = "sort_by_year", required = false) boolean sortByYear) {
 
 
-        if (page != null && booksPerPage != null && sortByYear)
-            model.addAttribute("books", bookService.findAll(page, booksPerPage, "year"));
-        else if (page != null && booksPerPage != null)
-            model.addAttribute("books", bookService.findAll(page, booksPerPage));
-        else if (sortByYear) {
-            model.addAttribute("books", bookService.findAll("year"));
-        } else
-            model.addAttribute("books", bookService.findAll());
+        if (page == null || booksPerPage == null)
+            model.addAttribute("books", bookService.findAll(sortByYear));
+        else
+            model.addAttribute("books", bookService.findWithPagination(page, booksPerPage, sortByYear));
 
         return "books/show_all";
     }
@@ -59,9 +55,9 @@ public class BooksController {
     /**
      * Показывает выбранную книгу.
      *
-     * @param id книги
+     * @param id     книги
      * @param person владелец книги
-     * */
+     */
     @GetMapping("{id}")
     private String show(@PathVariable("id") int id,
                         Model model,
@@ -69,48 +65,37 @@ public class BooksController {
 
         model.addAttribute("book", bookService.show(id));
 
-        Optional<Person> bookOwner = bookService.getBookOwner(id);
+        Person bookOwner = bookService.getBookOwner(id);
 
-        if (bookOwner.isPresent())
-            model.addAttribute("owner", bookOwner.get());
+        if (bookOwner != null)
+            model.addAttribute("owner", bookOwner);
         else
             model.addAttribute("people", peopleService.findAll());
 
         return "books/show";
     }
 
+    @GetMapping("/search")
+    private String searchPage() {
+        return "books/search";
+    }
+
     /**
      * страница поиска книги
      *
      * @param bookName то что пользователь вводит в поле поиска
-     * */
-    @GetMapping("/search")
-    private String search(Model model,
-                          @RequestParam(value = "bookName", required = false) String bookName) {
+     */
+    @PostMapping("/search")
+    public String makeSearch(Model model,
+                             @RequestParam(value = "bookName", required = false) String bookName) {
 
-        if (bookName == null || bookName.isEmpty())
-            return "books/search";
-
-        Optional<Book> findBook = bookService.search(bookName);
-
-        if (findBook.isPresent()) {
-            Book book = findBook.get();
-            model.addAttribute("findBook", book);
-            Optional<Person> bookOwner = bookService.getBookOwner(book.getId());
-            if (bookOwner.isPresent()) {
-                Person owner = bookOwner.get();
-                model.addAttribute("person", owner);
-            }
-        } else {
-            model.addAttribute("bookNotFound", true);
-        }
-
+        model.addAttribute("findBook", bookService.searchByTitle(bookName));
         return "books/search";
     }
 
     /**
      * возвращает форму для создания книги
-     * */
+     */
     @GetMapping("/new")
     private String newBook(@ModelAttribute("book") Book book) {
         return "books/new";
@@ -118,8 +103,7 @@ public class BooksController {
 
     /**
      * страница создания новой книги
-     *
-     * */
+     */
     @PostMapping()
     private String create(@ModelAttribute("book") @Valid Book book,
                           BindingResult bindingResult) {
@@ -134,7 +118,7 @@ public class BooksController {
 
     /**
      * возвращает форму для редактирования книги
-     * */
+     */
     @GetMapping("/{id}/edit")
     private String edit(@PathVariable("id") int id, Model model) {
         model.addAttribute("book", bookService.show(id));
@@ -145,7 +129,7 @@ public class BooksController {
      * страница для редактирования книг
      *
      * @param id книги
-     * */
+     */
     @PatchMapping("/{id}")
     private String update(@PathVariable("id") int id,
                           @ModelAttribute("book") @Valid Book book,
@@ -161,7 +145,7 @@ public class BooksController {
 
     /**
      * метод для удаления книг
-     * */
+     */
     @DeleteMapping("/{id}")
     private String delete(@PathVariable("id") int id) {
         bookService.delete(id);
@@ -171,7 +155,7 @@ public class BooksController {
 
     /**
      * освобождает книгу
-     * */
+     */
     @PatchMapping("/{id}/release")
     public String release(@PathVariable("id") int id) {
         bookService.release(id);
@@ -180,11 +164,12 @@ public class BooksController {
 
     /**
      * назначает книге нового пользователя
-     * */
-    @PatchMapping ("/{id}/assign")
+     */
+    @PatchMapping("/{id}/assign")
     public String assign(@PathVariable("id") int id,
                          @ModelAttribute("person") Person selectedPerson) {
 
+        // У selectedPerson назначено только поле id, остальные поля - null
         bookService.assign(id, selectedPerson);
 
         return "redirect:/books/" + id;

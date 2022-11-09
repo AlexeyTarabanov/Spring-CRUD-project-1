@@ -1,30 +1,28 @@
 package ru.alishev.springcourse.services;
 
 
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.alishev.springcourse.models.Book;
 import ru.alishev.springcourse.models.Person;
-import ru.alishev.springcourse.repositories.BookRepository;
 import ru.alishev.springcourse.repositories.PeopleRepository;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional(readOnly = true)
 public class PeopleService {
 
     private final PeopleRepository peopleRepository;
-    private final BookRepository bookRepository;
 
     @Autowired
-    public PeopleService(PeopleRepository peopleRepository, BookRepository bookRepository) {
+    public PeopleService(PeopleRepository peopleRepository) {
         this.peopleRepository = peopleRepository;
-        this.bookRepository = bookRepository;
     }
 
     public List<Person> findAll() {
@@ -57,19 +55,27 @@ public class PeopleService {
     }
 
     public List<Book> getBooksByPersonId(int id) {
-        Person person = peopleRepository.findById(id).orElse(null);
-        List<Book> bookByOwner = bookRepository.findBookByOwner(person);
-        bookByOwner.forEach(this::isBookIsOverdue);
-        return bookByOwner;
-    }
+        Optional<Person> person = peopleRepository.findById(id);
 
-    public void isBookIsOverdue(Book book) {
-        if (book.getDateTakeBook() != null) {
-            long different = new Date().getTime() - book.getDateTakeBook().getTime();
-            long days = TimeUnit.DAYS.convert(different, TimeUnit.MILLISECONDS);
-            if (days > 10) {
-                book.setOverdue(true);
-            }
+        if (person.isPresent()) {
+            Hibernate.initialize(person.get().getBooks());
+            // Мы внизу итерируемся по книгам, поэтому они точно будут загружены, но на всякий случай
+            // не мешает всегда вызывать Hibernate.initialize()
+            // (на случай, например, если код в дальнейшем поменяется и итерация по книгам удалится)
+
+            // Проверка просроченности книг
+            person.get().getBooks().forEach(book -> {
+                long diffInMillisecond =
+                        Math.abs(book.getDateTakeBook().getTime() - new Date().getTime());
+                // 864000000 милисекунд = 10 суток
+                if (diffInMillisecond > 864000000) {
+                    book.setOverdue(true);
+                }
+            });
+
+            return person.get().getBooks();
+        } else {
+            return Collections.emptyList();
         }
     }
 }

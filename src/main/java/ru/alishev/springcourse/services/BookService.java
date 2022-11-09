@@ -3,7 +3,6 @@ package ru.alishev.springcourse.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,8 +12,6 @@ import ru.alishev.springcourse.repositories.BookRepository;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -27,24 +24,20 @@ public class BookService {
         this.bookRepository = bookRepository;
     }
 
-    public List<Book> findAll() {
-        return bookRepository.findAllByOrderByTitle();
-    }
-
     // Сортировка
-    public List<Book> findAll(String value) {
-        return bookRepository.findAll(Sort.by(value));
+    public List<Book> findAll(boolean sortByYear) {
+        if (sortByYear)
+            return bookRepository.findAll(Sort.by("year"));
+        else
+            return bookRepository.findAll();
     }
 
     // Пагинация
-    public List<Book> findAll(int offset, int size) {
-        Slice<Book> allByOrderByTitle = bookRepository.findAll(PageRequest.of(offset, size));
-        return allByOrderByTitle.getContent();
-    }
-
-    // Комбо (сортировка + Пагинация)
-    public List<Book> findAll(int page, int booksPerPage, String value) {
-        return bookRepository.findAll(PageRequest.of(page, booksPerPage, Sort.by(value))).getContent();
+    public List<Book> findWithPagination(Integer page, Integer booksPerPage, boolean sortByYear) {
+        if (sortByYear)
+            return bookRepository.findAll(PageRequest.of(page, booksPerPage, Sort.by("year"))).getContent();
+        else
+            return bookRepository.findAll();
     }
 
     public Book show(int id) {
@@ -56,9 +49,18 @@ public class BookService {
         bookRepository.save(book);
     }
 
+    /**
+     * добавляем по сути новую книгу
+     * (которая не находится в Persistence context),
+     * поэтому нужен save
+     * */
     @Transactional
     public void update(int id, Book updateBook) {
+        Book bookToUpdate = bookRepository.findById(id).get();
         updateBook.setId(id);
+        // чтобы не терялась связь при обновлении
+        updateBook.setOwner(bookToUpdate.getOwner());
+
         bookRepository.save(updateBook);
     }
     @Transactional
@@ -67,12 +69,13 @@ public class BookService {
     }
 
     /**
-     * Join'им таблицы Book и Person и получаем человека, которому принадлежит книга с указанным id
+     * Returns null if book has no owner
+     * Здесь Hibernate.initialize() не нужен, так как владелец (сторона One) загружается не лениво
      * */
-    public Optional<Person> getBookOwner(int bookId) {
-        // Выбираем все колонки таблицы Person из объединенной таблицы
-        Book book = bookRepository.findById(bookId).orElse(null);
-        return Optional.ofNullable(Objects.requireNonNull(book).getOwner());
+    public Person getBookOwner(int bookId) {
+        return bookRepository.findById(bookId)
+                .map(Book::getOwner)
+                .orElse(null);
     }
 
     /**
@@ -80,7 +83,11 @@ public class BookService {
      * */
     @Transactional
     public void release(int id) {
-        bookRepository.findById(id).ifPresent(book -> book.setOwner(null));
+        bookRepository.findById(id).ifPresent(
+                book -> {
+                    book.setOwner(null);
+                    book.setDateTakeBook(null);
+                });
     }
 
     /**
@@ -88,14 +95,15 @@ public class BookService {
      * */
     @Transactional
     public void assign(int id, Person selectedPerson) {
-        Optional<Book> book = bookRepository.findById(id);
-        if (book.isPresent()) {
-            book.get().setDateTakeBook(new Date());
-            book.get().setOwner(selectedPerson);
-        }
+        bookRepository.findById(id).ifPresent(
+                book -> {
+                    book.setOwner(selectedPerson);
+                    book.setDateTakeBook(new Date());
+                }
+        );
     }
 
-    public Optional<Book> search(String title) {
+    public List<Book> searchByTitle(String title) {
        return bookRepository.findAllByTitleStartingWith(title);
     }
 

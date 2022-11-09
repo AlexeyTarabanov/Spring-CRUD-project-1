@@ -1,44 +1,45 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-        <head>
-            <meta charset="UTF-8">
-            <title>Показать</title>
-        </head>
-        <body>
-            <p th:text="${person.getFullName() + ', ' + person.getYearOfBirth()}">VALUE</p>
+<head>
+    <meta charset="UTF-8">
+    <title>Показать</title>
+</head>
+<body>
+<p th:text="${person.getFullName() + ', ' + person.getYearOfBirth()}">VALUE</p>
 
-            <div th:if="${books.isEmpty()}">
-                <p>Человек пока не взял ни одной книги</p>
-                <hr/>
-            </div>
+<div th:if="${books.isEmpty()}">
+    <p>Человек пока не взял ни одной книги</p>
+    <hr/>
+</div>
 
-            <div th:if="${!books.isEmpty()}">
-                <hr/>
-                <b>Книги:</b>
-                </br> <br/>
-                <table th:each="book : ${books}">
-                    <td th:style="${book.isOverdue() == true ? 'color: red;' : 'color: black;'}"
-                        th:text="${book.getTitle() + ', ' + book.getAuthor() + ', ' + book.getYear()}">book</td>
-                </table>
-                <hr/>
-            </div>
+<div th:if="${!books.isEmpty()}">
+    <hr/>
+    <b>Книги:</b>
+    </br> <br/>
+    <table th:each="book : ${books}">
+        <td th:style="${book.isOverdue()} ? 'color: red' : 'color: black'"
+            th:text="${book.getTitle() + ', ' + book.getAuthor() + ', ' + book.getYear()}">book
+        </td>
+    </table>
+    <hr/>
+</div>
 
-            <br/>
+<br/>
 
-            <form th:method="GET"
-                  th:action="@{/people/{person_id}/edit(person_id=${person.getPersonId()})}">
-<!--            <hr/>-->
-                <input type="submit" value="Редактировать">
-            </form>
+<form th:method="GET"
+      th:action="@{/people/{person_id}/edit(person_id=${person.getPersonId()})}">
+    <!--            <hr/>-->
+    <input type="submit" value="Редактировать">
+</form>
 
-            <form th:method="DELETE"
-                  th:action="@{/people/{id}(id=${person.getPersonId()})}">
-                <input type="submit" value="Удалить"/>
-            </form>
+<form th:method="DELETE"
+      th:action="@{/people/{id}(id=${person.getPersonId()})}">
+    <input type="submit" value="Удалить"/>
+</form>
 
-            <form th:method="GET"
-                  th:action="@{/people}">
-                <input type="submit" value="Назад">
-            </form>
-        </body>
+<form th:method="GET"
+      th:action="@{/people}">
+    <input type="submit" value="Назад">
+</form>
+</body>
 </html>
